@@ -1,0 +1,37 @@
+/* Gobble Run! — page frame. The game itself is painted on the canvas;
+   this sheet only centres the stage and gives the page its autumn dusk. */
+:root {
+  --dusk: #2b1a12;
+  --paper: #f7e8c9;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--dusk);
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--paper);
+}
+#stage {
+  width: min(1280px, 100vw);
+  padding: 8px;
+}
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  background: #f2a541;
+}
+#fallback {
+  text-align: center;
+  padding: 48px 16px;
+}
