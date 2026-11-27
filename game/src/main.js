@@ -1,19 +1,25 @@
-// Gobble Run! — boot, game loop and screen states.
-// States: title → run → caught / escaped (→ restart). Pause with P,
-// mute with M. A ?shot= pose renders one frozen scene for screenshots.
+// Gobble Run! 3D — boot, game loop and screen states.
+// The simulation (world.js) is the same one the 2D edition ran;
+// render3d.js paints it with three.js and overlay.js draws the HUD
+// and screens on a stacked 2D canvas. States: title → run →
+// caught / escaped (→ restart). Pause with P, mute with M.
+// A ?shot= pose renders one frozen scene for screenshots.
 
 import { createAudio } from './audio.js';
 import { createInput } from './input.js';
-import { drawEndScreen, drawScene, drawTitleScreen } from './render.js';
+import { drawEndOverlay, drawFloatersOverlay, drawHudOverlay, drawTitleOverlay } from './overlay.js';
+import { createView3D } from './render3d.js';
 import { posedRun } from './shots.js';
 import { createRun, startRun, stepRun } from './world.js';
 
 const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
-if (!ctx) {
+const overlay = document.getElementById('hud-canvas');
+const octx = overlay.getContext('2d');
+if (!window.THREE || !octx) {
   document.getElementById('fallback').hidden = false;
-  throw new Error('canvas unavailable');
+  throw new Error('WebGL or overlay canvas unavailable');
 }
+const view = createView3D(canvas);
 
 const audio = createAudio();
 const input = createInput(canvas);
@@ -24,12 +30,21 @@ let run = createRun();
 let scroll = 0;
 let paused = false;
 
+function paint() {
+  view.draw(run, scroll);
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+  if (run.phase === 'title') drawTitleOverlay(octx);
+  else if (run.phase === 'caught' || run.phase === 'escaped') drawEndOverlay(octx, run);
+  else {
+    drawHudOverlay(octx, run);
+    drawFloatersOverlay(octx, run);
+  }
+}
+
 if (pose) {
   run = pose.run;
   scroll = pose.scroll;
-  if (run.phase === 'title') drawTitleScreen(ctx, run, true);
-  else if (run.phase === 'caught' || run.phase === 'escaped') drawEndScreen(ctx, run);
-  else drawScene(ctx, run, scroll);
+  paint();
 } else {
   let last = performance.now();
   function frame(now) {
@@ -42,11 +57,11 @@ if (pose) {
 
     if (run.phase === 'title') {
       run.time += dt;
+      scroll += 30 * dt;
       if (pressed.includes('jump') || pressed.includes('confirm') || click) {
         audio.unlock();
         startRun(run);
       }
-      drawTitleScreen(ctx, run, false);
     } else if (run.phase === 'run') {
       if (!paused) {
         const eventsBefore = run.events.length;
@@ -64,27 +79,21 @@ if (pose) {
         }
         run.events.length = 0;
       }
-      ctx.save();
-      if (run.shake > 0) {
-        ctx.translate((Math.random() - 0.5) * run.shake * 12, (Math.random() - 0.5) * run.shake * 9);
-      }
-      drawScene(ctx, run, scroll);
-      ctx.restore();
-      if (paused) {
-        ctx.fillStyle = 'rgba(43,26,18,0.55)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#fff8e7';
-        ctx.font = "bold 54px Georgia, serif";
-        ctx.textAlign = 'center';
-        ctx.fillText('PAUSED — P to resume', canvas.width / 2, canvas.height / 2);
-      }
     } else { // caught or escaped
       run.time += dt;
       if (pressed.includes('restart') || pressed.includes('confirm') || click) {
         scroll = 0;
         startRun(run);
       }
-      drawEndScreen(ctx, run);
+    }
+    paint();
+    if (paused) {
+      octx.fillStyle = 'rgba(43,26,18,0.55)';
+      octx.fillRect(0, 0, overlay.width, overlay.height);
+      octx.fillStyle = '#fff8e7';
+      octx.font = 'bold 54px Georgia, serif';
+      octx.textAlign = 'center';
+      octx.fillText('PAUSED — P to resume', overlay.width / 2, overlay.height / 2);
     }
     requestAnimationFrame(frame);
   }

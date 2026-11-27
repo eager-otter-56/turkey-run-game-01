@@ -3,17 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gobble Run! — Escape the Feast</title>
+<title>Gobble Run! — Escape the Feast (3D)</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main id="stage">
   <canvas id="game-canvas" width="1280" height="800"></canvas>
+  <canvas id="hud-canvas" width="1280" height="800"></canvas>
   <div id="fallback" hidden>
     <h1>Gobble Run!</h1>
-    <p>This game needs a browser with canvas support.</p>
+    <p>This game needs a browser with WebGL and canvas support.</p>
   </div>
 </main>
+<script src="vendor/three.min.js"></script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
