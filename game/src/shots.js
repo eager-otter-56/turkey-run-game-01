@@ -19,9 +19,13 @@ export function posedRun(name) {
     run.score = 238 + 6 * 25;
     run.cornEaten = 6;
     run.stamina = 72;
-    run.farmer.gap = 168; // Hank close, shouting, arm stretched
+    run.farmer.gap = 148; // Hank right on his tail, shouting, arm stretched
+    run.sprinting = true; // speed lines sell the pace
     run.turkey.y = GROUND_Y - 128; // mid-leap over the hay bale
     run.turkey.jumpsUsed = 1;
+    run.feathers = [
+      { x: 1012, y: GROUND_Y - 46, taken: false, bob: 2 },
+    ];
     run.obstacles = [
       { kind: 'haybale', x: 452, passed: false },
       { kind: 'knife', x: 880, swing: 1.2, passed: false },
@@ -44,6 +48,7 @@ export function posedRun(name) {
     run.cornEaten = 11;
     run.lives = 2;
     run.stamina = 54;
+    run.shield = true; // the lucky feather is riding with him (ring + HUD pill)
     run.farmer.gap = 236;
     run.turkey.y = GROUND_Y;
     run.turkey.ducking = true; // ducking under the swinging knife

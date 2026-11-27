@@ -39,6 +39,8 @@ export function createRun() {
     speed: WORLD.baseSpeed,
     obstacles: [],
     corns: [],
+    feathers: [], // lucky-feather pickups: grab one, it eats your next hit
+    shield: false,
     particles: [],
     floaters: [], // little score popups: "+25", "DODGED +5", "GOLDEN! +100"
     dustIn: 0,
@@ -80,6 +82,11 @@ function spawnPattern(run) {
         taken: false, bob: rand() * 6.28, golden: i === goldenAt,
       });
     }
+  }
+  // Now and then a lucky feather drifts onto the lane ahead: run
+  // through it and it will take the next hit for you.
+  if (rand() < 0.17) {
+    run.feathers.push({ x: baseX + 190, y: GROUND_Y - 46, taken: false, bob: rand() * 6.28 });
   }
   const tightness = Math.min(1, run.metres / GOAL_METRES);
   run.nextSpawnIn = 720 + rand() * 430 - tightness * 180;
@@ -158,8 +165,10 @@ export function stepRun(run, input, dt) {
   // --- scroll the world ---------------------------------------------------
   for (const ob of run.obstacles) ob.x -= dx;
   for (const c of run.corns) c.x -= dx;
+  for (const fd of run.feathers) fd.x -= dx;
   run.obstacles = run.obstacles.filter((ob) => ob.x > -220);
   run.corns = run.corns.filter((c) => c.x > -80 && !c.taken);
+  run.feathers = run.feathers.filter((fd) => fd.x > -80 && !fd.taken);
   run.nextSpawnIn -= dx;
   if (run.nextSpawnIn <= 0 && run.metres < GOAL_METRES - 30) spawnPattern(run);
 
@@ -187,6 +196,18 @@ export function stepRun(run, input, dt) {
         run.events.push('corn');
         burstFeathers(run, 3, '#ffd94d');
       }
+    }
+  }
+
+  // --- lucky feather ---------------------------------------------------------
+  for (const fd of run.feathers) {
+    if (!fd.taken && !run.shield
+      && Math.abs(fd.x - TURKEY.x) < 72 && Math.abs(fd.y - (t.y - 46)) < 88) {
+      fd.taken = true;
+      run.shield = true;
+      addFloater(run, 'FEATHER SHIELD!', '#aee6ff');
+      run.events.push('corn');
+      burstFeathers(run, 6, '#aee6ff');
     }
   }
 
@@ -221,16 +242,23 @@ export function stepRun(run, input, dt) {
       if (ob.kind === 'haystack' || ob.passed) continue;
       if (overlaps(box, obstacleBox(ob))) {
         ob.passed = true;
-        run.lives -= 1;
         run.invincibleFor = 1.4;
         run.shake = 1;
-        f.gap -= FARMER.stumbleClose;
         run.events.push('stumble');
-        showBanner(run, ob.kind === 'knife' ? 'SLICED! Mind the carving knife!'
-          : ob.kind === 'oven' ? 'SINGED! Too close to the oven!'
-          : 'WHAM! You stumbled!');
-        burstFeathers(run, 10);
-        if (run.lives <= 0) return catchTurkey(run);
+        if (run.shield) { // the lucky feather eats the hit — no life lost
+          run.shield = false;
+          f.gap -= FARMER.stumbleClose * 0.4;
+          showBanner(run, 'THE FEATHER TOOK THE HIT!');
+          burstFeathers(run, 12, '#aee6ff');
+        } else {
+          run.lives -= 1;
+          f.gap -= FARMER.stumbleClose;
+          showBanner(run, ob.kind === 'knife' ? 'SLICED! Mind the carving knife!'
+            : ob.kind === 'oven' ? 'SINGED! Too close to the oven!'
+            : 'WHAM! You stumbled!');
+          burstFeathers(run, 10);
+          if (run.lives <= 0) return catchTurkey(run);
+        }
         break;
       }
     }

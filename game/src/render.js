@@ -349,6 +349,17 @@ export function drawObstacle(ctx, ob, run) {
         ctx.fillStyle = '#2c2721';
         ctx.beginPath(); ctx.arc(x + bx, GROUND_Y - 127, 11, 0, 6.29); ctx.fill();
       }
+      // steam curling off the top — something is already cooking in there
+      ctx.strokeStyle = 'rgba(255, 248, 231, 0.55)';
+      ctx.lineWidth = 4; ctx.lineCap = 'round';
+      for (let s = 0; s < 3; s++) {
+        const sx = x - 30 + s * 30;
+        const sway = Math.sin(run.time * 2.4 + ob.flame + s * 1.7) * 7;
+        ctx.beginPath();
+        ctx.moveTo(sx, GROUND_Y - 146);
+        ctx.quadraticCurveTo(sx + sway, GROUND_Y - 168, sx - sway, GROUND_Y - 192);
+        ctx.stroke();
+      }
       // glowing door with flames — do NOT become the roast
       ctx.fillStyle = '#ff7b2e';
       roundRect(ctx, x - 44, GROUND_Y - 100, 88, 74, 8); ctx.fill();
@@ -430,6 +441,24 @@ export function drawCorn(ctx, c, time) {
   ctx.restore();
 }
 
+export function drawFeatherPickup(ctx, fd, time) {
+  const y = fd.y + Math.sin(time * 2.6 + fd.bob) * 6;
+  ctx.save();
+  ctx.translate(fd.x, y);
+  // soft halo so the eye catches it at speed
+  ctx.fillStyle = 'rgba(174, 230, 255, 0.32)';
+  ctx.beginPath(); ctx.arc(0, 0, 30 + Math.sin(time * 4 + fd.bob) * 4, 0, 6.29); ctx.fill();
+  ctx.rotate(Math.sin(time * 2 + fd.bob) * 0.3 - 0.5);
+  // one proud white feather, gold-tipped
+  ctx.fillStyle = '#fdfdf8';
+  ctx.beginPath(); ctx.ellipse(0, 0, 10, 26, 0, 0, 6.29); ctx.fill();
+  ctx.fillStyle = '#ffd94d';
+  ctx.beginPath(); ctx.ellipse(0, -16, 9, 10, 0, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(0, 26); ctx.stroke();
+  ctx.restore();
+}
+
 export function drawParticles(ctx, run) {
   for (const p of run.particles) {
     ctx.globalAlpha = Math.max(0, p.life * 1.6);
@@ -453,6 +482,11 @@ export function drawHud(ctx, run) {
     ctx.globalAlpha = i < run.lives ? 1 : 0.22;
     ctx.fillText('🦃', x, 49);
     ctx.globalAlpha = 1;
+  }
+  if (run.shield) { // the lucky feather rides along until it eats a hit
+    ctx.fillStyle = 'rgba(90, 150, 190, 0.85)';
+    roundRect(ctx, 478, 30, 118, 36, 10); ctx.fill();
+    text(ctx, '🪶 SHIELD', 537, 49, 19, '#eaf7ff');
   }
   text(ctx, `${Math.min(GOAL_METRES, Math.floor(run.metres))} m / ${GOAL_METRES} m`, 1240, 40, 24, '#f7e8c9', 'right');
   // progress to the Wildwood fence
@@ -506,7 +540,7 @@ export function drawTitleScreen(ctx, run, pose) {
   text(ctx, '▶  CLICK or press SPACE to RUN!', 895, 594, 27, '#fff8e7');
   text(ctx, 'SPACE / ↑ jump (twice = flap!) · ↓ duck the knives · → sprint · reach the Wildwood fence at 1,000 m',
     VIEW_WIDTH / 2, 678, 21, '#3d2317');
-  text(ctx, 'Dodge the oven & the carving knife · grab corn (golden = +100!) · hide in haystacks · clean dodges pay +5',
+  text(ctx, 'Dodge the oven & the knife · grab corn (golden = +100!) · a lucky feather eats one hit for you · dodges pay +5',
     VIEW_WIDTH / 2, 710, 21, '#3d2317');
 }
 
@@ -618,8 +652,18 @@ export function drawScene(ctx, run, scroll) {
   }
   for (const ob of run.obstacles) drawObstacle(ctx, ob, run);
   for (const c of run.corns) if (!c.taken) drawCorn(ctx, c, run.time);
+  for (const fd of run.feathers || []) if (!fd.taken) drawFeatherPickup(ctx, fd, run.time);
   drawSpeedLines(ctx, run);
   drawFarmer(ctx, run);
+  if (run.shield) { // a pale ring rides with him while the feather lasts
+    ctx.save();
+    ctx.strokeStyle = 'rgba(174, 230, 255, 0.75)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(TURKEY.x, run.turkey.y - 62, 86, 84, 0, 0, 6.29);
+    ctx.stroke();
+    ctx.restore();
+  }
   drawTurkey(ctx, run);
   drawParticles(ctx, run);
   drawFloaters(ctx, run);
