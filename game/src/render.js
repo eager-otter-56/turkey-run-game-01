@@ -144,7 +144,10 @@ function drawBarn(ctx, x, baseY) {
   ctx.beginPath();
   ctx.moveTo(x + 66, baseY - 92); ctx.lineTo(x + 124, baseY); ctx.moveTo(x + 124, baseY - 92); ctx.lineTo(x + 66, baseY);
   ctx.stroke();
-  text(ctx, 'TURKEY COOP', x + 95, baseY - 158, 17, '#7e2118');
+  // cream sign on the barn wall, readable at a glance
+  ctx.fillStyle = '#f7e8c9';
+  roundRect(ctx, x + 18, baseY - 122, 154, 24, 5); ctx.fill();
+  text(ctx, 'TURKEY COOP', x + 95, baseY - 109, 16, '#7e2118');
 }
 
 function drawPumpkin(ctx, x, y, r) {
@@ -408,8 +411,14 @@ export function drawCorn(ctx, c, time) {
   const y = c.y + Math.sin(time * 3 + c.bob) * 5;
   ctx.save();
   ctx.translate(c.x, y);
+  if (c.golden) { // the golden corn glows and runs larger
+    const pulse = 1 + Math.sin(time * 6 + c.bob) * 0.1;
+    ctx.scale(1.45 * pulse, 1.45 * pulse);
+    ctx.fillStyle = 'rgba(255, 217, 77, 0.35)';
+    ctx.beginPath(); ctx.arc(0, 0, 34, 0, 6.29); ctx.fill();
+  }
   ctx.rotate(Math.sin(time * 2 + c.bob) * 0.16);
-  ctx.fillStyle = '#ffd94d';
+  ctx.fillStyle = c.golden ? '#ffbe1e' : '#ffd94d';
   ctx.beginPath(); ctx.ellipse(0, 0, 13, 24, 0, 0, 6.29); ctx.fill();
   ctx.strokeStyle = '#d9a514'; ctx.lineWidth = 2;
   for (let r = -14; r <= 14; r += 9) {
@@ -497,7 +506,7 @@ export function drawTitleScreen(ctx, run, pose) {
   text(ctx, '▶  CLICK or press SPACE to RUN!', 895, 594, 27, '#fff8e7');
   text(ctx, 'SPACE / ↑ jump (twice = flap!) · ↓ duck the knives · → sprint · reach the Wildwood fence at 1,000 m',
     VIEW_WIDTH / 2, 678, 21, '#3d2317');
-  text(ctx, 'Dodge the oven & the carving knife · grab corn · hide in haystacks · do not let Farmer Hank grab you (3 lives)',
+  text(ctx, 'Dodge the oven & the carving knife · grab corn (golden = +100!) · hide in haystacks · clean dodges pay +5',
     VIEW_WIDTH / 2, 710, 21, '#3d2317');
 }
 
@@ -562,6 +571,36 @@ export function drawEndScreen(ctx, run) {
   else text(ctx, 'Tip: a perfect run banks +100 per life left. Can you keep all three?', VIEW_WIDTH / 2, 610, 21, '#ffe9b0');
 }
 
+export function drawFloaters(ctx, run) {
+  for (const fl of run.floaters) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, fl.life * 1.8);
+    ctx.font = "bold 21px Georgia, serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(43,26,18,0.8)';
+    ctx.strokeText(fl.label, fl.x, fl.y);
+    ctx.fillStyle = fl.colour;
+    ctx.fillText(fl.label, fl.x, fl.y);
+    ctx.restore();
+  }
+}
+
+export function drawSpeedLines(ctx, run) {
+  if (!run.sprinting || run.phase !== 'run') return;
+  ctx.strokeStyle = 'rgba(255, 248, 231, 0.5)';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 5; i++) {
+    const y = 240 + i * 78 + Math.sin(run.time * 31 + i * 2.1) * 9;
+    const len = 60 + ((i * 53) % 70);
+    ctx.beginPath();
+    ctx.moveTo(TURKEY.x - 130 - i * 26, y);
+    ctx.lineTo(TURKEY.x - 130 - i * 26 - len, y);
+    ctx.stroke();
+  }
+}
+
 export function drawScene(ctx, run, scroll) {
   const stage = stageAt(run.metres);
   if (stage === 'kitchen') drawKitchen(ctx, scroll, run.time);
@@ -579,9 +618,11 @@ export function drawScene(ctx, run, scroll) {
   }
   for (const ob of run.obstacles) drawObstacle(ctx, ob, run);
   for (const c of run.corns) if (!c.taken) drawCorn(ctx, c, run.time);
+  drawSpeedLines(ctx, run);
   drawFarmer(ctx, run);
   drawTurkey(ctx, run);
   drawParticles(ctx, run);
+  drawFloaters(ctx, run);
   drawHud(ctx, run);
   if (run.metres > KITCHEN_START_METRES - 12 && run.metres < KITCHEN_START_METRES + 8) {
     text(ctx, '— THROUGH THE KITCHEN! —', VIEW_WIDTH / 2, 220, 40, '#ffd94d');

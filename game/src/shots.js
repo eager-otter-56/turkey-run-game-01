@@ -29,8 +29,11 @@ export function posedRun(name) {
     ];
     run.corns = [
       { x: 560, y: GROUND_Y - 240, taken: false, bob: 1 },
-      { x: 640, y: GROUND_Y - 262, taken: false, bob: 2 },
+      { x: 640, y: GROUND_Y - 262, taken: false, bob: 2, golden: true },
       { x: 720, y: GROUND_Y - 240, taken: false, bob: 3 },
+    ];
+    run.floaters = [
+      { x: 520, y: GROUND_Y - 316, life: 0.9, label: 'DODGED +5', colour: '#b6ff7a' },
     ];
     return { run, scroll: 238 * 46 };
   }

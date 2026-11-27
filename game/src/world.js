@@ -40,6 +40,9 @@ export function createRun() {
     obstacles: [],
     corns: [],
     particles: [],
+    floaters: [], // little score popups: "+25", "DODGED +5", "GOLDEN! +100"
+    dustIn: 0,
+    sprinting: false,
     nextSpawnIn: 340,
     events: [], // sound cues for main.js: gobble, flap, corn, stumble...
   };
@@ -65,13 +68,16 @@ function spawnPattern(run) {
     else push('knife', baseX, { swing: rand() * 6.28 });
   }
   // Corn trails arc over the hazards — a reason to jump bravely.
+  // About one trail in eight hides a golden corn: +100 and a big
+  // shove that knocks Hank back down the lane.
   if (rand() < 0.72) {
     const n = 3 + Math.floor(rand() * 3);
+    const goldenAt = rand() < 0.13 ? Math.floor(rand() * n) : -1;
     for (let i = 0; i < n; i++) {
       run.corns.push({
         x: baseX - 60 + i * 74,
         y: GROUND_Y - 120 - Math.sin((i / Math.max(1, n - 1)) * Math.PI) * 90,
-        taken: false, bob: rand() * 6.28,
+        taken: false, bob: rand() * 6.28, golden: i === goldenAt,
       });
     }
   }
@@ -169,12 +175,45 @@ export function stepRun(run, input, dt) {
     if (!c.taken && Math.abs(c.x - TURKEY.x) < 74 && Math.abs(c.y - (t.y - 52)) < 86) {
       c.taken = true;
       run.cornEaten += 1;
-      run.score += CORN_SCORE;
-      f.gap += FARMER.cornPushBack;
-      run.events.push('corn');
-      burstFeathers(run, 3, '#ffd94d');
+      if (c.golden) {
+        run.score += 100;
+        f.gap += 95;
+        addFloater(run, 'GOLDEN CORN! +100', '#ffd94d');
+        run.events.push('corn');
+        burstFeathers(run, 9, '#ffd94d');
+      } else {
+        run.score += CORN_SCORE;
+        f.gap += FARMER.cornPushBack;
+        run.events.push('corn');
+        burstFeathers(run, 3, '#ffd94d');
+      }
     }
   }
+
+  // --- clean dodges pay a little and say so --------------------------------
+  for (const ob of run.obstacles) {
+    if (ob.counted || ob.passed) continue;
+    if (ob.x < TURKEY.x - 70) {
+      ob.counted = true;
+      if (ob.kind !== 'haystack') {
+        run.score += 5;
+        addFloater(run, 'DODGED +5', '#b6ff7a');
+      }
+    }
+  }
+
+  // --- dust at his heels -----------------------------------------------------
+  run.sprinting = sprinting;
+  run.dustIn -= dt;
+  if (t.y >= GROUND_Y && run.dustIn <= 0) {
+    run.dustIn = 0.09;
+    run.particles.push({
+      x: TURKEY.x - 44, y: GROUND_Y - 4, vx: -90 - rand() * 90,
+      vy: -26 - rand() * 42, life: 0.34, colour: '#c9a06a',
+    });
+  }
+  for (const fl of run.floaters) { fl.y -= 44 * dt; fl.life -= dt; }
+  run.floaters = run.floaters.filter((fl) => fl.life > 0);
 
   // --- hazards --------------------------------------------------------------
   if (run.invincibleFor <= 0) {
@@ -226,6 +265,10 @@ export function stepRun(run, input, dt) {
 function showBanner(run, text) {
   run.banner = text;
   run.bannerFor = 1.6;
+}
+
+function addFloater(run, label, colour) {
+  run.floaters.push({ x: TURKEY.x + 26, y: run.turkey.y - 148, life: 0.95, label, colour });
 }
 
 function burstFeathers(run, count, colour = '#ffffff') {
