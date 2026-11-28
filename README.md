@@ -8,12 +8,14 @@ An original, fully offline turkey escape game built for the make.fun bounty
 **turkey-run-game-01**
 (https://make.fun/bounty/turkey-run-game-01).
 
-**Now in 3D!** The whole game is rendered with three.js (vendored under
-`game/vendor/`): a low-poly turkey with a banded tail fan, Farmer Hank built
-from boxes and spheres, a sunset farmyard and the farmhouse kitchen, all
-modelled from primitives in code — no model files. The simulation is the
-same proven one; only the view went 3D, with the HUD and screens drawn on a
-stacked 2D overlay canvas so the text stays crisp.
+**Now a 3D lane runner!** The camera rides behind Tom, Minion-Rush style:
+three lanes run away to the horizon, hazards and corn trails come at you in
+their lanes, and Farmer Hank looms in the frame behind you, bigger whenever
+his gap shrinks. Rendered with three.js (vendored under `game/vendor/`): a
+low-poly turkey whose banded tail fan fills the view from behind, a sunset
+farmyard and a tiled kitchen corridor, all modelled from primitives in
+code — no model files. The HUD and screens are drawn on a stacked 2D
+overlay canvas so the text stays crisp.
 
 Thanksgiving is at 6 and dinner is YOU. You are Tom the turkey, sprinting
 1,000 m from Farmer Hank's farmyard to the Wildwood fence. Hank chases you
@@ -24,10 +26,13 @@ name on it.
 
 ## How it plays
 
+- **Switch lanes** to dodge — or to chase the corn trails, which run
+  down a single lane (half arc high for jumpers, half run low).
 - **Jump** hay bales, fences, stools and the oven — press jump again in
-  mid-air to **flap** over the wide ones.
+  mid-air to **flap** over the wide ones. Watch for **the wall**: two
+  lanes blocked at once, one left open.
 - **Duck** under the swinging carving knives.
-- **Sprint** (right arrow) on a stamina meter to open up the gap.
+- **Sprint** (Shift) on a stamina meter to open up the gap.
 - **Corn** is worth 25 points and shoves Hank back a step; **golden corn**
   pays +100 and shoves him hard. A **lucky feather** pickup grants a shield
   that eats one hit for you.
@@ -38,9 +43,9 @@ name on it.
 
 ## Controls
 
-- **Space / ↑ / W** — jump, again in mid-air to flap · **↓ / S** — duck
-- **→ / D** — sprint · **← / A** — ease off (Hank gains!) · **P** pause · **M** mute
-- **Click / tap** — start and restart · **R** — run again on the end screen
+- **← → / A D** — switch lanes · **Space / ↑ / W** — jump, again in mid-air to flap
+- **↓ / S** — duck · **Shift** — sprint · **P** pause · **M** mute
+- **Click / tap** — start and restart (tap the left/right third to switch lanes) · **R** — run again
 
 ## Layout
 
@@ -51,8 +56,8 @@ name on it.
   network requests. Serve it with `node serve.ts` and open
   http://localhost:8080, or any static file server.
   - `game/src/config.js` — every tuning number in one place
-  - `game/src/world.js` — the simulation: turkey, farmer AI, hazards, corn, scoring
-  - `game/src/render3d.js` — the three.js view: low-poly turkey, farmer, farmyard and kitchen modelled from primitives
+  - `game/src/world.js` — the simulation: 3-lane runner — turkey, farmer AI, hazards, corn, scoring
+  - `game/src/render3d.js` — the three.js view: behind-the-turkey runner camera, low-poly turkey, farmer, farmyard and kitchen corridor modelled from primitives
   - `game/src/overlay.js` — the 2D overlay canvas: HUD, score floaters, title and end screens
   - `game/vendor/three.min.js` — three.js r128 (MIT), vendored so the game never touches the network
   - `game/src/input.js` — keyboard and mouse, with an edge-press queue

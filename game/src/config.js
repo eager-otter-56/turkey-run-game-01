@@ -29,7 +29,7 @@ export const FARMER = {
   caughtGap: 26, // closer than this and his hands land
   stumbleClose: 120, // a stumble lets him lunge this far
   cornPushBack: 26, // corn bursts shove him back a little
-  baseChase: 0.94, // fraction of turkey speed he matches early on
+  baseChase: 0.96, // fraction of turkey speed he matches early on
   lateChase: 1.015, // ...and late he is right on your tail feathers
   recoverPerSecond: 7.5, // clean running slowly reopens the gap
 };

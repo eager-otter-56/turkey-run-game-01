@@ -103,7 +103,7 @@ export function drawTitleOverlay(ctx) {
   text(ctx, '▶  CLICK or press SPACE to RUN!', 895, 594, 27, '#fff8e7');
   ctx.fillStyle = 'rgba(255, 248, 231, 0.82)';
   roundRect(ctx, 90, 652, 1100, 76, 12); ctx.fill();
-  text(ctx, 'SPACE / ↑ jump (twice = flap!) · ↓ duck the knives · → sprint · reach the Wildwood fence at 1,000 m',
+  text(ctx, '← → switch lanes · SPACE / ↑ jump (twice = flap!) · ↓ duck the knives · SHIFT sprint to the Wildwood fence at 1,000 m',
     VIEW_WIDTH / 2, 678, 21, '#3d2317');
   text(ctx, 'Dodge the oven & the knife · grab corn (golden = +100!) · a lucky feather eats one hit for you · dodges pay +5',
     VIEW_WIDTH / 2, 710, 21, '#3d2317');
@@ -130,6 +130,6 @@ export function drawEndOverlay(ctx, run) {
   text(ctx, '↻  RUN AGAIN — click or press R', VIEW_WIDTH / 2, 523, 26, '#fff8e7');
   text(ctx, escaped
     ? 'Tip: a perfect run banks +100 per life left. Can you keep all three?'
-    : 'Tip: duck the knives, jump the oven, and hide in haystacks to shake him off.',
+    : 'Tip: switch lanes early — duck the knives, jump the oven, hide in haystacks to shake him off.',
     VIEW_WIDTH / 2, 610, 21, '#ffe9b0');
 }

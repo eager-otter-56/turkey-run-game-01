@@ -4,15 +4,16 @@
 // never lost.
 
 export function createInput(target) {
-  const held = { jump: false, duck: false, sprint: false, left: false };
+  const held = { jump: false, duck: false, sprint: false };
   const pressed = [];
   let clickPoint = null;
 
   const keyMap = {
     ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
     ArrowDown: 'duck', KeyS: 'duck',
-    ArrowRight: 'sprint', KeyD: 'sprint',
-    ArrowLeft: 'left', KeyA: 'left',
+    ArrowRight: 'laneRight', KeyD: 'laneRight',
+    ArrowLeft: 'laneLeft', KeyA: 'laneLeft',
+    ShiftLeft: 'sprint', ShiftRight: 'sprint',
   };
 
   function onKeyDown(event) {
@@ -41,6 +42,10 @@ export function createInput(target) {
       y: ((event.clientY - rect.top) / rect.height) * target.height,
     };
     pressed.push('confirm');
+    // tap the left or right third of the track to switch lanes
+    const fx = (event.clientX - rect.left) / rect.width;
+    if (fx < 0.36) pressed.push('laneLeft');
+    else if (fx > 0.64) pressed.push('laneRight');
   }
 
   window.addEventListener('keydown', onKeyDown);

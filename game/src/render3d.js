@@ -1,15 +1,23 @@
-// Gobble Run! 3D — the three.js view. The simulation in world.js is
-// unchanged from the 2D edition: this file only paints its state in
-// 3D — a low-poly turkey with a fanned tail, Farmer Hank built from
-// boxes and spheres, the farmyard at sunset and the farmhouse kitchen,
-// all modelled from primitives (no model files, no network).
-// Screen coordinates from world.js map 1:1 onto world units:
-// x is x, and a screen y becomes (GROUND_Y - y) so the dirt sits at 0.
+// Gobble Run! 3D — the three.js view, runner edition. The camera
+// rides behind Tom the turkey (Minion-Rush style): three lanes run
+// away to the horizon, hazards and corn trails come at you in their
+// lanes, and Farmer Hank looms in the frame behind you, closer
+// whenever his gap shrinks. The simulation in world.js holds lanes
+// and distances; this file only paints them — a low-poly turkey with
+// a banded tail fan (the view from behind shows it off), a farmer
+// built from boxes and spheres, a sunset farmyard and a kitchen
+// corridor, all modelled from primitives. No model files, no network.
+// Mapping: an item's x in the simulation is distance along the track,
+// so z = -(x - TURKEY.x); a lane is x = lane * LANE_W; a simulation
+// y becomes height (GROUND_Y - y).
 
-import { GROUND_Y, KITCHEN_START_METRES, TURKEY, VIEW_HEIGHT, VIEW_WIDTH } from './config.js';
+import { GOAL_METRES, GROUND_Y, PIXELS_PER_METRE, TURKEY, VIEW_HEIGHT, VIEW_WIDTH } from './config.js';
 import { stageAt } from './world.js';
 
+const LANE_W = 170;
 const Y = (screenY) => GROUND_Y - screenY;
+const laneX = (lane) => lane * LANE_W;
+const aheadZ = (simX) => -(simX - TURKEY.x);
 
 function mat(color, opts = {}) {
   return new THREE.MeshLambertMaterial({ color, ...opts });
@@ -70,8 +78,10 @@ function glowSprite(scale, color = '255, 217, 77') {
   grad.addColorStop(0, `rgba(${color}, 0.85)`);
   grad.addColorStop(1, `rgba(${color}, 0)`);
   g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.encoding = THREE.sRGBEncoding;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: (() => { const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; return t; })(), transparent: true, depthWrite: false,
+    map: tex, transparent: true, depthWrite: false,
   }));
   sp.scale.set(scale, scale, 1);
   return sp;
@@ -103,7 +113,7 @@ function dirtTexture() {
   const tex = new THREE.CanvasTexture(cv);
   tex.encoding = THREE.sRGBEncoding;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(10, 2);
+  tex.repeat.set(12, 26);
   return tex;
 }
 
@@ -121,7 +131,7 @@ function checkerTexture() {
   const tex = new THREE.CanvasTexture(cv);
   tex.encoding = THREE.sRGBEncoding;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(10, 2);
+  tex.repeat.set(12, 26);
   return tex;
 }
 
@@ -135,7 +145,7 @@ function tileTexture() {
   const tex = new THREE.CanvasTexture(cv);
   tex.encoding = THREE.sRGBEncoding;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(14, 5);
+  tex.repeat.set(16, 3);
   return tex;
 }
 
@@ -145,27 +155,24 @@ function buildTurkey() {
   const body = ball(46, 0x8a5a2b, 0, 58, 0, 1.25, 0.85, 0.92);
   t.add(body);
   t.add(ball(30, 0x9c6b30, 26, 50, 0, 1, 0.8, 0.8)); // breast
-  // tail fan — seven banded feathers fanned behind him
+  // tail fan — seven banded feathers fanned behind him; from the
+  // runner camera this is the hero of the whole show
   const fan = new THREE.Group();
   fan.position.set(-44, 66, 0);
   for (let i = 0; i < 7; i++) {
     const a = -1.05 + i * 0.33;
     const len = 66 - Math.abs(i - 3) * 6;
     const feather = new THREE.Group();
-    const shaft = box(15, len, 5, i % 2 ? 0x8a5a2b : 0x6e4520, 0, len / 2, 0);
-    const tip = box(15, 13, 6, 0x2e1c0d, 0, len - 6, 0);
-    const band = box(15, 7, 6, 0xe8c07a, 0, len - 16, 0);
-    feather.add(shaft, tip, band);
-    feather.rotation.z = a; // fan points up-back
-    feather.position.y = 0;
+    feather.add(box(5, len, 15, i % 2 ? 0x8a5a2b : 0x6e4520, 0, len / 2, 0));
+    feather.add(box(6, 13, 15, 0x2e1c0d, 0, len - 6, 0));
+    feather.add(box(6, 7, 15, 0xe8c07a, 0, len - 16, 0));
+    feather.rotation.x = a; // fan spreads sideways, flat to the camera behind
     fan.add(feather);
   }
-  fan.rotation.z = -0.45;
+  fan.rotation.z = 0.45; // tips lean back over the tail
   t.add(fan);
-  // wing on the camera side — flaps on the double jump
   const wing = ball(25, 0x7c5226, -6, 58, 38, 1.05, 0.5, 0.35);
   t.add(wing);
-  // neck, head, beak, wattle
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(10, 13, 44, 10), mat(0x7ea6b8));
   neck.position.set(44, 96, 0); neck.rotation.z = -0.5; neck.castShadow = true;
   t.add(neck);
@@ -174,9 +181,8 @@ function buildTurkey() {
   beak.position.set(82, 110, 0); beak.rotation.z = -Math.PI / 2; beak.castShadow = true;
   t.add(beak);
   t.add(ball(7, 0xd63c2f, 66, 94, 0, 0.8, 1.5, 0.8)); // wattle
-  t.add(ball(6.5, 0xffffff, 62, 116, 13)); // eye, camera side
+  t.add(ball(6.5, 0xffffff, 62, 116, 13));
   t.add(ball(3.4, 0x1c1410, 64, 116, 18));
-  // legs
   const legs = [];
   for (const side of [1, -1]) {
     const leg = new THREE.Group();
@@ -188,7 +194,6 @@ function buildTurkey() {
     legs.push(leg);
     t.add(leg);
   }
-  // the lucky feather's ring
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(96, 4, 10, 40),
     new THREE.MeshBasicMaterial({ color: 0xaee6ff, transparent: true, opacity: 0.75 }),
@@ -232,11 +237,15 @@ function buildFarmer() {
   f.add(top);
   f.add(ball(3, 0x1c1410, 16, 198, 12));
   f.add(ball(3, 0x1c1410, 16, 198, -12));
-  const shout = textSign(300, 66, 'COME BACK, DINNER!', '#a93226', '#fff8e7', 58);
-  shout.position.set(96, 268, 0);
+  // speech signs are counter-rotated so they face the camera even
+  // though the farmer himself faces down the track
+  const shout = textSign(96, 27, 'COME BACK, DINNER!', '#a93226', '#fff8e7', 58);
+  shout.position.set(0, 300, 0);
+  shout.rotation.y = -Math.PI / 2;
   f.add(shout);
-  const titleShout = textSign(320, 66, "THERE'S MY DINNER!", '#a93226', '#fff8e7', 56);
-  titleShout.position.set(110, 268, 0);
+  const titleShout = textSign(102, 27, "THERE'S MY DINNER!", '#a93226', '#fff8e7', 56);
+  titleShout.position.set(0, 300, 0);
+  titleShout.rotation.y = -Math.PI / 2;
   titleShout.visible = false;
   f.add(titleShout);
   return { group: f, legs, arms, shout, titleShout };
@@ -296,7 +305,6 @@ function buildObstacle(ob) {
       const label = textSign(170, 42, 'OVEN — 220°', '#ffd94d', null, 72);
       label.position.set(0, 178, 30);
       g.add(label);
-      // steam wisps that curl off the top
       g.userData.steam = [];
       for (let s = 0; s < 3; s++) {
         const puff = ball(9, 0xfff8e7, -30 + s * 30, 168, 0, 1, 1.3, 1);
@@ -316,7 +324,6 @@ function buildObstacle(ob) {
       break;
     }
     case 'knife': {
-      // gallows post + rack bar; the blade group swings from the bar
       g.add(box(14, 306, 14, 0x7c5226, 62, 153, 0));
       g.add(box(150, 14, 16, 0x4a4238, 0, 300, 0));
       const swingG = new THREE.Group();
@@ -368,7 +375,6 @@ function buildFeatherPickup() {
 function buildBarn() {
   const g = new THREE.Group();
   g.add(box(190, 130, 120, 0xa93226, 0, 65, 0));
-  // gables + sloped roof planes
   const gableShape = new THREE.Shape();
   gableShape.moveTo(-95, 130); gableShape.lineTo(95, 130); gableShape.lineTo(0, 196); gableShape.closePath();
   for (const dz of [59, -59]) {
@@ -381,7 +387,7 @@ function buildBarn() {
     slope.rotation.z = -side * 0.61;
     g.add(slope);
   }
-  g.add(box(58, 92, 6, 0xf7e8c9, 0, 46, 62)); // door
+  g.add(box(58, 92, 6, 0xf7e8c9, 0, 46, 62));
   const brace1 = box(74, 7, 7, 0x7e2118, 0, 46, 64); brace1.rotation.z = 0.99;
   const brace2 = box(74, 7, 7, 0x7e2118, 0, 46, 64); brace2.rotation.z = -0.99;
   g.add(brace1, brace2);
@@ -423,63 +429,92 @@ export function createView3D(canvas) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x7e5226);
-  scene.fog = new THREE.Fog(0xf7a54d, 1500, 3400);
-  const camera = new THREE.PerspectiveCamera(42, VIEW_WIDTH / VIEW_HEIGHT, 10, 5000);
-  camera.position.set(600, 330, 1130);
-  camera.lookAt(600, 112, 0);
+  scene.fog = new THREE.Fog(0xf78d2c, 900, 2600);
+  const camera = new THREE.PerspectiveCamera(55, VIEW_WIDTH / VIEW_HEIGHT, 10, 6000);
 
   scene.add(new THREE.HemisphereLight(0xffe9b0, 0x7e5226, 0.34));
   const sunLight = new THREE.DirectionalLight(0xfff2cc, 0.72);
-  sunLight.position.set(500, 700, 650);
+  sunLight.position.set(300, 800, 500);
   sunLight.castShadow = true;
-  sunLight.shadow.camera.left = -800; sunLight.shadow.camera.right = 800;
-  sunLight.shadow.camera.top = 800; sunLight.shadow.camera.bottom = -300;
+  sunLight.shadow.camera.left = -700; sunLight.shadow.camera.right = 700;
+  sunLight.shadow.camera.top = 900; sunLight.shadow.camera.bottom = -400;
+  sunLight.shadow.camera.far = 3000;
   sunLight.shadow.mapSize.set(1024, 1024);
   scene.add(sunLight);
 
-  // sky backdrop + sun disc
+  // sky at the end of the track + low sun
   const sky = new THREE.Mesh(
-    new THREE.PlaneGeometry(3600, 1300),
+    new THREE.PlaneGeometry(7600, 2100),
     new THREE.MeshBasicMaterial({
       map: gradientTexture([[0, '#e07b1f'], [0.55, '#f78d2c'], [1, '#ffc93c']]),
       fog: false,
     }),
   );
-  sky.position.set(600, 420, -820);
+  sky.position.set(0, 520, -2650);
   scene.add(sky);
   const sunDisc = new THREE.Mesh(
-    new THREE.CircleGeometry(62, 26),
+    new THREE.CircleGeometry(90, 26),
     new THREE.MeshBasicMaterial({ color: 0xfff3b0, fog: false }),
   );
-  sunDisc.position.set(1085, Y(480), -800);
+  sunDisc.position.set(330, 210, -2600);
   scene.add(sunDisc);
-  const sunGlow = glowSprite(320);
-  sunGlow.position.set(1085, Y(480), -790);
+  const sunGlow = glowSprite(460);
+  sunGlow.position.set(330, 210, -2550);
   scene.add(sunGlow);
 
-  // ground (texture swaps with the stage)
+  // the track: a long ground plane whose texture flows toward the camera
   const dirt = dirtTexture();
   const checker = checkerTexture();
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(3800, 1700),
+    new THREE.PlaneGeometry(3400, 4200),
     new THREE.MeshLambertMaterial({ map: dirt }),
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set(600, 0, 180);
+  ground.position.set(0, 0, -1700);
   ground.receiveShadow = true;
   scene.add(ground);
+  // lane divider lines
+  for (const lx of [-255, -85, 85, 255]) {
+    const strip = new THREE.Mesh(
+      new THREE.PlaneGeometry(7, 4200),
+      new THREE.MeshBasicMaterial({ color: 0xffe9b0, transparent: true, opacity: 0.38 }),
+    );
+    strip.rotation.x = -Math.PI / 2;
+    strip.position.set(lx, 0.6, -1700);
+    scene.add(strip);
+  }
 
-  // farmyard set
+  // farmyard set: fences, barns, hills, clouds, pumpkins along the sides
   const farm = new THREE.Group();
   scene.add(farm);
+  const sidePosts = [];
+  for (let i = 0; i < 34; i++) {
+    for (const side of [1, -1]) {
+      const post = box(9, 62, 9, 0x7c4a21, side * 305, 31, 0);
+      farm.add(post); sidePosts.push(post);
+    }
+  }
+  for (const side of [1, -1]) {
+    const rail1 = box(8, 8, 4200, 0x7c4a21, side * 305, 44, -1700);
+    const rail2 = box(8, 8, 4200, 0x7c4a21, side * 305, 18, -1700);
+    rail1.castShadow = rail2.castShadow = false;
+    farm.add(rail1, rail2);
+  }
+  const barns = [];
+  for (let i = 0; i < 4; i++) {
+    const barn = buildBarn();
+    barn.position.x = (i % 2 ? 1 : -1) * 640;
+    barn.rotation.y = (i % 2 ? -1 : 1) * 0.35;
+    barns.push(barn); farm.add(barn);
+  }
   const hills = [];
-  for (let i = 0; i < 3; i++) {
-    const hill = ball(330, 0xc47a33, 0, -16, -430, 1.6, 0.36, 0.5);
+  for (let i = 0; i < 4; i++) {
+    const hill = ball(430, 0xa86428, (i % 2 ? 1 : -1) * 1020, -95, 0, 1.9, 0.42, 0.6);
     hill.castShadow = false;
     hills.push(hill); farm.add(hill);
   }
   const clouds = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const cl = new THREE.Group();
     const cloudMat = new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.92 });
     const c1 = new THREE.Mesh(new THREE.SphereGeometry(74, 18, 12), cloudMat);
@@ -487,59 +522,44 @@ export function createView3D(canvas) {
     const c2 = new THREE.Mesh(new THREE.SphereGeometry(52, 18, 12), cloudMat);
     c2.scale.set(1, 0.26, 0.5); c2.position.set(48, -4, 0);
     cl.add(c1, c2);
-    cl.position.set(i * 390, Y(196 + (i % 2) * 54), -520);
+    cl.position.y = 435 + (i % 2) * 70;
     clouds.push(cl); farm.add(cl);
   }
-  const barns = [buildBarn(), buildBarn()];
-  barns[0].position.set(760, 0, -270);
-  barns[1].position.set(2460, 0, -270);
-  farm.add(barns[0], barns[1]);
-  const fencePosts = [];
-  for (let i = 0; i < 17; i++) {
-    const post = box(9, 62, 9, 0x7c4a21, 0, 31, 0);
-    farm.add(post); fencePosts.push(post);
-  }
-  const rails = [box(2600, 8, 6, 0x7c4a21, 600, 44, -58), box(2600, 8, 6, 0x7c4a21, 600, 18, -58)];
-  farm.add(rails[0], rails[1]);
-  for (const p of fencePosts) p.position.z = -58;
-  for (const r of rails) r.castShadow = false;
   const pumpkins = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const pk = new THREE.Group();
-    const bodyP = ball(26, 0xe07b2a, 0, 18, 0, 1, 0.78, 1);
-    pk.add(bodyP);
+    pk.add(ball(26, 0xe07b2a, 0, 18, 0, 1, 0.78, 1));
     pk.add(box(8, 12, 8, 0x4d7c0f, 0, 42, 0));
-    pk.position.z = 150;
+    pk.position.x = (i % 2 ? 1 : -1) * 352;
     pumpkins.push(pk); farm.add(pk);
   }
 
-  // kitchen set
+  // kitchen set: a tiled corridor — walls, beams, hanging pans,
+  // menu boards on the left wall, windows glowing on the right
   const kitchen = new THREE.Group();
   scene.add(kitchen);
-  const wall = new THREE.Mesh(
-    new THREE.PlaneGeometry(3600, 1300),
-    new THREE.MeshLambertMaterial({ map: tileTexture() }),
-  );
-  wall.position.set(600, 420, -520);
-  kitchen.add(wall);
-  const windowGlow = new THREE.Mesh(
-    new THREE.PlaneGeometry(210, 190),
-    new THREE.MeshBasicMaterial({ map: gradientTexture([[0, '#ffe9a8'], [1, '#ffb066']]) }),
-  );
-  windowGlow.position.set(1055, Y(300), -505);
-  kitchen.add(windowGlow);
-  kitchen.add(box(226, 14, 10, 0x4a2417, 1055, Y(300) + 95, -500));
-  kitchen.add(box(226, 14, 10, 0x4a2417, 1055, Y(300) - 95, -500));
-  kitchen.add(box(14, 198, 10, 0x4a2417, 950, Y(300), -500));
-  kitchen.add(box(14, 198, 10, 0x4a2417, 1160, Y(300), -500));
-  kitchen.add(box(12, 190, 8, 0x4a2417, 1055, Y(300), -498));
+  const tile = tileTexture();
+  for (const side of [1, -1]) {
+    const wallM = new THREE.Mesh(
+      new THREE.PlaneGeometry(4200, 560),
+      new THREE.MeshLambertMaterial({ map: tile }),
+    );
+    wallM.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    wallM.position.set(side * 305, 280, -1700);
+    kitchen.add(wallM);
+  }
+  const beams = [];
+  for (let i = 0; i < 10; i++) {
+    const beam = box(620, 18, 14, 0x4a2417, 0, 486, 0);
+    beams.push(beam); kitchen.add(beam);
+  }
   const pans = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const pan = buildPan();
-    pan.position.set(i * 520 + 140, Y(150), -130);
+    pan.position.x = laneX((i % 3) - 1);
     pans.push(pan); kitchen.add(pan);
   }
-  const menu = makeSign(340, 138, (g, cw, ch) => {
+  const menuDraw = (g, cw, ch) => {
     g.fillStyle = '#3d2317'; g.fillRect(0, 0, cw, ch);
     g.strokeStyle = '#c98d4b'; g.lineWidth = 8; g.strokeRect(6, 6, cw - 12, ch - 12);
     g.textAlign = 'center';
@@ -549,47 +569,55 @@ export function createView3D(canvas) {
     g.fillText('ROAST TURKEY — 6 PM', cw / 2, 128);
     g.fillStyle = '#e8a87c'; g.font = 'italic bold 36px Georgia, serif';
     g.fillText('(he has other plans)', cw / 2, 182);
-  });
-  menu.position.set(115, Y(415), -470);
-  kitchen.add(menu);
+  };
+  const menus = [];
+  for (let i = 0; i < 3; i++) {
+    const menu = makeSign(292, 118, menuDraw);
+    menu.rotation.y = Math.PI / 2; // on the left wall, facing inward
+    menu.position.set(-298, 300, 0);
+    menus.push(menu); kitchen.add(menu);
+  }
+  const windows = [];
+  for (let i = 0; i < 3; i++) {
+    const win = new THREE.Group();
+    const glow = new THREE.Mesh(
+      new THREE.PlaneGeometry(210, 190),
+      new THREE.MeshBasicMaterial({ map: gradientTexture([[0, '#ffe9a8'], [1, '#ffb066']]) }),
+    );
+    win.add(glow);
+    win.add(box(226, 14, 10, 0x4a2417, 0, 95, 4));
+    win.add(box(226, 14, 10, 0x4a2417, 0, -95, 4));
+    win.add(box(12, 190, 8, 0x4a2417, 0, 0, 4));
+    win.rotation.y = -Math.PI / 2; // on the right wall, facing inward
+    win.position.set(298, 300, 0);
+    windows.push(win); kitchen.add(win);
+  }
   kitchen.visible = false;
 
-  // finish-line trees + fence (farmyard, near the goal)
+  // finish line: the Wildwood fence across the track + trees behind
   const finish = new THREE.Group();
+  for (let px = -300; px <= 300; px += 75) {
+    finish.add(box(14, 108, 14, 0x9c6b30, px, 54, 0));
+  }
+  finish.add(box(660, 12, 12, 0x9c6b30, 0, 96, 0));
   for (let i = 0; i < 5; i++) {
     const tree = buildTree();
-    tree.position.set(120 + i * 66, 0, -140);
+    tree.position.set(-260 + i * 130, 0, -170);
     finish.add(tree);
   }
-  for (const px of [120, 300, 480, 660, 840, 1020]) {
-    finish.add(box(14, 108, 14, 0x9c6b30, px, 54, -30));
-  }
-  finish.add(box(1060, 12, 12, 0x9c6b30, 570, 96, -30));
   const wildSign = textSign(430, 64, '🌲 THE WILDWOOD 🌲', '#2e5d1e', null, 62);
-  wildSign.position.set(380, 330, -60);
+  wildSign.position.set(0, 330, -40);
   finish.add(wildSign);
   finish.visible = false;
   scene.add(finish);
 
-  // caught tableau: table + cloche
-  const clocheSet = new THREE.Group();
-  clocheSet.add(box(560, 16, 220, 0x8a5a2b, 460, 8, 0));
-  const cloche = new THREE.Mesh(
-    new THREE.SphereGeometry(120, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-    mat(0xc7ccd4, { emissive: 0x222222 }),
-  );
-  cloche.position.set(460, 16, 0);
-  clocheSet.add(cloche);
-  clocheSet.add(ball(13, 0x9aa3ad, 460, 142, 0));
-  clocheSet.visible = false;
-  scene.add(clocheSet);
-
   const turkey = buildTurkey();
+  turkey.group.rotation.y = Math.PI / 2; // face down the track, fan to camera
   scene.add(turkey.group);
   const farmer = buildFarmer();
+  farmer.group.rotation.y = Math.PI / 2;
   scene.add(farmer.group);
 
-  // pooled dynamic items
   const pools = { obstacles: new Map(), corns: new Map(), feathers: new Map() };
   function syncPool(map, items, build, update) {
     const seen = new Set();
@@ -610,7 +638,6 @@ export function createView3D(canvas) {
     }
   }
 
-  // particle pool (feathers + dust from the simulation)
   const particlePool = [];
   for (let i = 0; i < 70; i++) {
     const p = box(11, 6, 2, 0xffffff, 0, -100, 0);
@@ -622,7 +649,7 @@ export function createView3D(canvas) {
   function placeActors(run) {
     const t = run.turkey;
     const feetY = GROUND_Y - t.y;
-    turkey.group.position.set(TURKEY.x, feetY, 0);
+    turkey.group.position.set(laneX(t.lane), feetY, 0);
     const duck = t.ducking ? 0.6 : 1;
     turkey.group.scale.set(
       (1 + t.squash * 0.13) * (t.ducking ? 1.14 : 1),
@@ -637,7 +664,7 @@ export function createView3D(canvas) {
     });
     turkey.wing.rotation.x = t.jumpsUsed === 2 && airborne
       ? Math.sin(run.time * 34) * 0.8 : 0.15 + Math.sin(t.runCycle * 2.4) * 0.07;
-    turkey.fan.rotation.z = -0.45 + Math.sin(t.runCycle) * 0.05;
+    turkey.fan.rotation.z = 0.45 + Math.sin(t.runCycle) * 0.05;
     turkey.ring.visible = !!run.shield;
     turkey.ring.rotation.y = Math.sin(run.time * 2.2) * 0.35;
     turkey.group.visible = run.phase !== 'caught'
@@ -645,16 +672,22 @@ export function createView3D(canvas) {
 
     const f = run.farmer;
     const bob = Math.abs(Math.sin(run.time * 9.2)) * 7;
-    let fx = TURKEY.x - f.gap - 92;
-    if (run.phase === 'title') fx = 210;
-    if (run.phase === 'caught') fx = 800;
-    farmer.group.position.set(fx, bob, 0);
+    farmer.group.visible = run.phase !== 'escaped';
+    if (run.phase === 'title') {
+      farmer.group.position.set(-198, bob, 150);
+    } else if (run.phase === 'caught') {
+      farmer.group.position.set(laneX(t.lane) - 30, 0, 70);
+    } else {
+      // the smaller his gap, the bigger he looms behind you
+      farmer.group.position.set(laneX(t.lane) * 0.72 - 118, bob, 300 - f.gap * 0.55);
+    }
+    const fscale = run.phase === 'run' ? 0.95 + Math.max(0, 130 - f.gap) / 300 : 1;
+    farmer.group.scale.set(fscale, fscale, fscale);
     farmer.legs.forEach((leg, i) => {
       leg.rotation.z = Math.sin(run.time * 9.2 + (i ? Math.PI : 0)) * 0.5;
     });
     const reach = 34 + Math.max(0, 150 - f.gap) * 0.5;
     farmer.arms.forEach((arm) => { arm.rotation.z = 1.5 - reach / 420; });
-    farmer.group.visible = run.phase !== 'escaped';
     farmer.shout.visible = run.phase === 'run' && f.gap < 190;
     farmer.titleShout.visible = run.phase === 'title';
   }
@@ -669,55 +702,61 @@ export function createView3D(canvas) {
       ground.material.map = groundTex;
       ground.material.needsUpdate = true;
     }
-    groundTex.offset.x = (scroll * 0.9 / 256) % 1;
+    groundTex.offset.y = (scroll * 26 / 4200) % 1;
 
     if (!inKitchen) {
+      sidePosts.forEach((post, i) => {
+        const pair = Math.floor(i / 2);
+        post.position.z = -(((pair * 92 - scroll) % 3100 + 3100) % 3100) + 200;
+      });
+      barns.forEach((barn, i) => {
+        barn.position.z = -(((i * 1050 - scroll * 0.92) % 4200 + 4200) % 4200) + 380;
+      });
       hills.forEach((hill, i) => {
-        hill.position.x = 300 + i * 640 - ((scroll * 0.25) % 640);
+        hill.position.z = -(((i * 800 - scroll * 0.25) % 3200 + 3200) % 3200) - 200;
       });
       clouds.forEach((cl, i) => {
-        cl.position.x = ((i * 390 - scroll * 0.12 + run.time * 4) % 1500) - 120;
-      });
-      barns[0].position.x = 760 - (scroll * 0.3 % 1700);
-      barns[1].position.x = barns[0].position.x + 1700;
-      fencePosts.forEach((post, i) => {
-        post.position.x = i * 92 - ((scroll * 0.6) % 92) - 40;
+        cl.position.x = ((i * 430 - 900 + run.time * 6) % 1900 + 1900) % 1900 - 950;
+        cl.position.z = -(((i * 700 - scroll * 0.1) % 3500 + 3500) % 3500) - 700;
       });
       pumpkins.forEach((pk, i) => {
-        pk.position.x = i * 460 + 180 - (scroll % 460);
+        pk.position.z = -(((i * 700 - scroll) % 4200 + 4200) % 4200) - 60;
       });
     } else {
+      beams.forEach((beam, i) => {
+        beam.position.z = -(((i * 430 - scroll) % 4300 + 4300) % 4300) + 200;
+      });
       pans.forEach((pan, i) => {
-        pan.position.x = i * 520 + 140 - ((scroll * 0.85) % 520);
+        pan.position.y = 486;
+        pan.position.z = -(((i * 690 - scroll) % 4140 + 4140) % 4140) + 150;
+      });
+      menus.forEach((menu, i) => {
+        menu.position.z = -(((i * 1500 - scroll) % 4500 + 4500) % 4500) + 100;
+      });
+      windows.forEach((win, i) => {
+        win.position.z = -(((i * 1500 + 700 - scroll) % 4500 + 4500) % 4500) + 100;
       });
     }
 
-    finish.visible = !inKitchen && (run.metres > 976 || run.phase === 'escaped');
+    const metresLeft = GOAL_METRES - run.metres;
+    finish.visible = !inKitchen && (metresLeft < 30 || run.phase === 'escaped');
     if (finish.visible) {
-      if (run.phase === 'escaped') {
-        // the victory tableau: rail under the turkey, trees behind him
-        finish.position.x = -100;
-        wildSign.visible = false;
-      } else {
-        const fenceX = VIEW_WIDTH - (run.metres - 976) * 46 * 0.4;
-        finish.position.x = fenceX - 120;
-        wildSign.visible = true;
-      }
+      finish.position.z = run.phase === 'escaped' ? -140 : -(metresLeft * PIXELS_PER_METRE);
+      wildSign.visible = run.phase === 'run';
     }
-    clocheSet.visible = run.phase === 'caught';
 
     syncPool(pools.obstacles, run.obstacles, buildObstacle, (g, ob) => {
-      g.position.set(ob.x, 0, 0);
+      g.position.set(laneX(ob.lane ?? 0), 0, aheadZ(ob.x));
       if (ob.kind === 'knife' && g.userData.swingG) {
         g.userData.swingG.rotation.z = Math.sin(run.time * 2.6 + ob.swing) * 0.5;
       }
       if (ob.kind === 'oven' && g.userData.flame) {
         const fl = 1 + Math.sin(run.time * 11 + ob.flame) * 0.16;
         g.userData.flame.scale.set(fl, fl, 1);
-        g.userData.steam.forEach((puff, s) => {
-          const ph = ((run.time * 0.55 + ob.flame + s * 0.33) % 1);
+        g.userData.steam.forEach((puff, sIdx) => {
+          const ph = ((run.time * 0.55 + ob.flame + sIdx * 0.33) % 1);
           puff.position.y = 168 + ph * 52;
-          puff.position.x = -30 + s * 30 + Math.sin(run.time * 2.4 + s) * 7 * ph;
+          puff.position.x = -30 + sIdx * 30 + Math.sin(run.time * 2.4 + sIdx) * 7 * ph;
           puff.material.opacity = 0.5 * (1 - ph);
           const sc = 0.7 + ph * 0.9;
           puff.scale.set(sc, sc * 1.3, sc);
@@ -726,21 +765,26 @@ export function createView3D(canvas) {
     });
     syncPool(pools.corns, run.corns.filter((c) => !c.taken), buildCorn, (g, c) => {
       const bobY = Math.sin(run.time * 3 + c.bob) * 5;
-      g.position.set(c.x, Y(c.y) + bobY, 0);
-      const s = c.golden ? 1.45 : 1;
-      g.scale.set(s, s, s);
+      g.position.set(laneX(c.lane ?? 0), Y(c.y) + bobY, aheadZ(c.x));
+      const sc = c.golden ? 1.5 : 1.15;
+      g.scale.set(sc, sc, sc);
       g.rotation.y = Math.sin(run.time * 2 + c.bob) * 0.3;
     });
     syncPool(pools.feathers, (run.feathers || []).filter((fd) => !fd.taken),
       buildFeatherPickup, (g, fd) => {
-        g.position.set(fd.x, Y(fd.y) + Math.sin(run.time * 2.6 + fd.bob) * 6, 0);
+        g.position.set(laneX(fd.lane ?? 0), Y(fd.y) + Math.sin(run.time * 2.6 + fd.bob) * 6, aheadZ(fd.x));
+        g.scale.set(1.4, 1.4, 1.4);
         g.rotation.y = run.time * 1.6 + fd.bob;
       });
 
     run.particles.forEach((p, i) => {
       const m = particlePool[i % particlePool.length];
       m.visible = true;
-      m.position.set(p.x, Y(p.y), 6);
+      m.position.set(
+        laneX(run.turkey.lane) + (p.x - TURKEY.x) * 0.8,
+        GROUND_Y - p.y,
+        (TURKEY.x - p.x) * 0.9 + 12,
+      );
       m.material.color.set(p.colour);
       m.rotation.z = p.x * 0.05;
     });
@@ -753,8 +797,22 @@ export function createView3D(canvas) {
     }
     placeActors(run);
     if (run.phase === 'escaped') {
-      turkey.group.position.y = 108; // perched on the finish fence
+      turkey.group.position.set(0, 108, -128); // perched on the finish fence
       turkey.group.visible = true;
+    }
+    if (run.phase === 'caught') {
+      turkey.group.visible = true; // caught turkey stays in frame, squashed
+      turkey.group.scale.y = 0.72;
+    }
+
+    // camera rides behind the turkey, leaning into his lane
+    const tx = laneX(run.turkey.lane);
+    camera.position.set(tx * 0.55, 322, 478);
+    camera.lookAt(tx * 0.85, 55, -420);
+    const targetFov = run.sprinting && run.phase === 'run' ? 60 : 55;
+    if (Math.abs(camera.fov - targetFov) > 0.05) {
+      camera.fov += (targetFov - camera.fov) * 0.08;
+      camera.updateProjectionMatrix();
     }
     renderer.render(scene, camera);
   }

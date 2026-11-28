@@ -1,6 +1,9 @@
 // Gobble Run! — the world: turkey, farmer, obstacles, corn and scoring.
 // Pure simulation (no drawing here): main.js feeds it input and time,
-// render.js paints whatever state it holds.
+// render3d.js paints whatever state it holds. The run is a 3-lane
+// runner (Minion-Rush style, seen from behind): obstacles and corn
+// live in a lane (-1, 0, 1) and only threaten a turkey in their lane;
+// the x axis is still "distance along the track" and y is height.
 
 import {
   FARMER, GOAL_METRES, GROUND_Y, KITCHEN_START_METRES, PIXELS_PER_METRE,
@@ -33,6 +36,7 @@ export function createRun() {
     turkey: {
       y: GROUND_Y, vy: 0, jumpsUsed: 0, ducking: false,
       runCycle: 0, squash: 0, hidden: false,
+      lane: 0, laneTarget: 0, // -1 left, 0 centre, 1 right
     },
     farmer: { gap: FARMER.startGap, grabFor: 0, shoutFor: 0 },
     stamina: WORLD.staminaMax,
@@ -50,23 +54,44 @@ export function createRun() {
   };
 }
 
+const LANES = [-1, 0, 1];
+function pickLane() { return LANES[Math.floor(rand() * 3)]; }
+function otherLane(lane) {
+  const rest = LANES.filter((l) => l !== lane);
+  return rest[Math.floor(rand() * rest.length)];
+}
+
 function spawnPattern(run) {
   const stage = stageAt(run.metres);
   const roll = rand();
   const baseX = 1420;
   const push = (kind, x, extra = {}) =>
-    run.obstacles.push({ kind, x, passed: false, ...extra });
+    run.obstacles.push({ kind, x, lane: pickLane(), passed: false, ...extra });
   if (stage === 'farmyard') {
-    if (roll < 0.30) push('haybale', baseX);
-    else if (roll < 0.52) push('fence', baseX);
-    else if (roll < 0.70) { push('haybale', baseX); push('haybale', baseX + 265); }
-    else if (roll < 0.86) push('knife', baseX, { swing: rand() * 6.28 });
+    if (roll < 0.26) push('haybale', baseX);
+    else if (roll < 0.44) push('fence', baseX);
+    else if (roll < 0.58) { // staggered pair, different lanes
+      const first = push('haybale', baseX);
+      run.obstacles.push({ kind: 'haybale', x: baseX + 265, lane: otherLane(first.lane), passed: false });
+    } else if (roll < 0.74) { // the wall: two lanes blocked, one left open
+      const open = pickLane();
+      for (const l of LANES) {
+        if (l !== open) run.obstacles.push({ kind: 'haybale', x: baseX, lane: l, passed: false });
+      }
+    } else if (roll < 0.88) push('knife', baseX, { swing: rand() * 6.28 });
     else push('haystack', baseX); // hide inside to shake the farmer
   } else {
-    if (roll < 0.30) push('oven', baseX, { flame: rand() * 6.28 });
-    else if (roll < 0.55) push('knife', baseX, { swing: rand() * 6.28 });
-    else if (roll < 0.72) { push('stool', baseX); push('stool', baseX + 265); }
-    else if (roll < 0.88) push('oven', baseX, { flame: rand() * 6.28 });
+    if (roll < 0.26) push('oven', baseX, { flame: rand() * 6.28 });
+    else if (roll < 0.48) push('knife', baseX, { swing: rand() * 6.28 });
+    else if (roll < 0.62) { // staggered stools, different lanes
+      const first = push('stool', baseX);
+      run.obstacles.push({ kind: 'stool', x: baseX + 265, lane: otherLane(first.lane), passed: false });
+    } else if (roll < 0.78) { // kitchen wall: oven + stool side by side, one lane open
+      const open = pickLane();
+      const blocked = LANES.filter((l) => l !== open);
+      run.obstacles.push({ kind: 'oven', x: baseX, lane: blocked[0], flame: rand() * 6.28, passed: false });
+      run.obstacles.push({ kind: 'stool', x: baseX, lane: blocked[1], passed: false });
+    } else if (roll < 0.90) push('oven', baseX, { flame: rand() * 6.28 });
     else push('knife', baseX, { swing: rand() * 6.28 });
   }
   // Corn trails arc over the hazards — a reason to jump bravely.
@@ -75,10 +100,16 @@ function spawnPattern(run) {
   if (rand() < 0.72) {
     const n = 3 + Math.floor(rand() * 3);
     const goldenAt = rand() < 0.13 ? Math.floor(rand() * n) : -1;
+    const trailLane = pickLane();
+    // half the trails arc high (jump for them), half run low along a
+    // lane so switching lanes to eat pays off without leaving the ground
+    const lowTrail = rand() < 0.5;
+    const baseH = lowTrail ? 64 : 120;
+    const arcH = lowTrail ? 42 : 90;
     for (let i = 0; i < n; i++) {
       run.corns.push({
-        x: baseX - 60 + i * 74,
-        y: GROUND_Y - 120 - Math.sin((i / Math.max(1, n - 1)) * Math.PI) * 90,
+        x: baseX - 60 + i * 74, lane: trailLane,
+        y: GROUND_Y - baseH - Math.sin((i / Math.max(1, n - 1)) * Math.PI) * arcH,
         taken: false, bob: rand() * 6.28, golden: i === goldenAt,
       });
     }
@@ -86,10 +117,10 @@ function spawnPattern(run) {
   // Now and then a lucky feather drifts onto the lane ahead: run
   // through it and it will take the next hit for you.
   if (rand() < 0.17) {
-    run.feathers.push({ x: baseX + 190, y: GROUND_Y - 46, taken: false, bob: rand() * 6.28 });
+    run.feathers.push({ x: baseX + 190, lane: pickLane(), y: GROUND_Y - 46, taken: false, bob: rand() * 6.28 });
   }
   const tightness = Math.min(1, run.metres / GOAL_METRES);
-  run.nextSpawnIn = 720 + rand() * 430 - tightness * 180;
+  run.nextSpawnIn = 450 + rand() * 270 - tightness * 110; // denser than the old one-lane game: only ~1/3 of hazards share your lane
 }
 
 function turkeyBox(run) {
@@ -128,12 +159,11 @@ export function stepRun(run, input, dt) {
   const f = run.farmer;
 
   // --- speed & distance -------------------------------------------------
-  const sprinting = input.held.sprint && run.stamina > 1 && !input.held.left;
-  const easing = input.held.left ? 0.82 : 1;
+  const sprinting = input.held.sprint && run.stamina > 1;
   run.stamina = Math.max(0, Math.min(WORLD.staminaMax,
     run.stamina + (sprinting ? -WORLD.staminaDrain : WORLD.staminaRegen) * dt));
   const targetSpeed = Math.min(WORLD.maxSpeed,
-    WORLD.baseSpeed + run.metres * WORLD.speedGainPerMetre) * easing
+    WORLD.baseSpeed + run.metres * WORLD.speedGainPerMetre)
     + (sprinting ? WORLD.sprintBoost : 0);
   run.speed += (targetSpeed - run.speed) * Math.min(1, dt * 3);
   const dx = run.speed * dt;
@@ -141,6 +171,11 @@ export function stepRun(run, input, dt) {
   run.score += dx / PIXELS_PER_METRE * METRE_SCORE;
 
   // --- turkey body ------------------------------------------------------
+  if (input.pressed.includes('laneLeft')) t.laneTarget = Math.max(-1, t.laneTarget - 1);
+  if (input.pressed.includes('laneRight')) t.laneTarget = Math.min(1, t.laneTarget + 1);
+  const laneStep = 7.5 * dt; // a lane change takes about a quarter second
+  if (t.lane < t.laneTarget) t.lane = Math.min(t.laneTarget, t.lane + laneStep);
+  else if (t.lane > t.laneTarget) t.lane = Math.max(t.laneTarget, t.lane - laneStep);
   t.ducking = input.held.duck && t.y >= GROUND_Y;
   if (input.pressed.includes('jump')) {
     if (t.y >= GROUND_Y) {
@@ -176,12 +211,13 @@ export function stepRun(run, input, dt) {
   t.hidden = false;
   const box = turkeyBox(run);
   for (const ob of run.obstacles) {
-    if (ob.kind === 'haystack' && overlaps(box, obstacleBox(ob))) t.hidden = true;
+    if (ob.kind === 'haystack' && Math.abs(ob.lane - t.lane) < 0.55
+      && overlaps(box, obstacleBox(ob))) t.hidden = true;
   }
 
   // --- corn ---------------------------------------------------------------
   for (const c of run.corns) {
-    if (!c.taken && Math.abs(c.x - TURKEY.x) < 74 && Math.abs(c.y - (t.y - 52)) < 86) {
+    if (!c.taken && Math.abs(c.lane - t.lane) < 0.6 && Math.abs(c.x - TURKEY.x) < 74 && Math.abs(c.y - (t.y - 52)) < 86) {
       c.taken = true;
       run.cornEaten += 1;
       if (c.golden) {
@@ -201,7 +237,7 @@ export function stepRun(run, input, dt) {
 
   // --- lucky feather ---------------------------------------------------------
   for (const fd of run.feathers) {
-    if (!fd.taken && !run.shield
+    if (!fd.taken && !run.shield && Math.abs(fd.lane - t.lane) < 0.6
       && Math.abs(fd.x - TURKEY.x) < 72 && Math.abs(fd.y - (t.y - 46)) < 88) {
       fd.taken = true;
       run.shield = true;
@@ -240,7 +276,7 @@ export function stepRun(run, input, dt) {
   if (run.invincibleFor <= 0) {
     for (const ob of run.obstacles) {
       if (ob.kind === 'haystack' || ob.passed) continue;
-      if (overlaps(box, obstacleBox(ob))) {
+      if (Math.abs(ob.lane - t.lane) < 0.55 && overlaps(box, obstacleBox(ob))) {
         ob.passed = true;
         run.invincibleFor = 1.4;
         run.shake = 1;
@@ -270,7 +306,6 @@ export function stepRun(run, input, dt) {
   f.gap += (run.speed * (1 - chaseShare)) * dt * -1; // he eats the gap at his share
   f.gap += FARMER.recoverPerSecond * dt * (t.hidden ? 4.2 : 1); // hiding breaks his search
   if (sprinting) f.gap += 26 * dt;
-  if (input.held.left) f.gap -= 30 * dt;
   f.gap = Math.max(0, Math.min(430, f.gap));
   f.shoutFor = Math.max(0, f.shoutFor - dt);
   if (f.gap < 130 && f.shoutFor <= 0) { f.shoutFor = 2.6; run.events.push('shout'); }
@@ -296,7 +331,7 @@ function showBanner(run, text) {
 }
 
 function addFloater(run, label, colour) {
-  run.floaters.push({ x: TURKEY.x + 26, y: run.turkey.y - 148, life: 0.95, label, colour });
+  run.floaters.push({ x: 640, y: 300, life: 0.95, label, colour });
 }
 
 function burstFeathers(run, count, colour = '#ffffff') {
