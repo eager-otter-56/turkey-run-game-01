@@ -35,10 +35,10 @@ export const FARMER = {
 };
 
 export const WORLD = {
-  baseSpeed: 430, // px per second at the whistle
-  speedGainPerMetre: 0.55,
-  maxSpeed: 880,
-  sprintBoost: 150, // right-arrow sprint, drains stamina
+  baseSpeed: 495, // px per second at the whistle
+  speedGainPerMetre: 0.62,
+  maxSpeed: 990,
+  sprintBoost: 170, // Shift sprint, drains stamina
   staminaMax: 100,
   staminaDrain: 34,
   staminaRegen: 16,
