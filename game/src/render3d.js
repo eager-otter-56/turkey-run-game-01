@@ -265,8 +265,10 @@ export function createView3D(canvas) {
       leg.visible = !t.ducking;
       leg.rotation.z = -swing * (i === 0 ? 1 : -1) * 0.8;
     });
-    turkey.wing.rotation.x = t.jumpsUsed === 2 && airborne
+    const flap = t.jumpsUsed === 2 && airborne
       ? Math.sin(run.time * 34) * 0.8 : 0.15 + Math.sin(t.runCycle * 2.4) * 0.07;
+    turkey.wing.rotation.x = flap;
+    if (turkey.wingL) turkey.wingL.rotation.x = -flap;
     turkey.fan.rotation.z = 0.45 + Math.sin(t.runCycle) * 0.05;
     turkey.ring.visible = !!run.shield;
     turkey.ring.rotation.y = Math.sin(run.time * 2.2) * 0.35;

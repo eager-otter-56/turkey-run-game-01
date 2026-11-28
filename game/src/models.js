@@ -14,7 +14,7 @@ export function box(w, h, d, color, x = 0, y = 0, z = 0) {
 }
 
 export function ball(r, color, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 22, 16), mat(color));
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 34, 24), mat(color));
   m.position.set(x, y, z);
   m.scale.set(sx, sy, sz);
   m.castShadow = true;
@@ -78,6 +78,24 @@ export function gradientTexture(stops, w = 64, h = 512) {
   g.fillStyle = grad; g.fillRect(0, 0, w, h);
   const tex = new THREE.CanvasTexture(cv);
   tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+
+export function plaidTexture() {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#a93226'; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = 'rgba(70,16,12,0.55)';
+  g.fillRect(0, 0, 26, 128); g.fillRect(64, 0, 26, 128);
+  g.fillRect(0, 0, 128, 26); g.fillRect(0, 64, 128, 26);
+  g.fillStyle = 'rgba(247,232,201,0.5)';
+  g.fillRect(40, 0, 5, 128); g.fillRect(104, 0, 5, 128);
+  g.fillRect(0, 40, 128, 5); g.fillRect(0, 104, 128, 5);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.encoding = THREE.sRGBEncoding;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 1);
   return tex;
 }
 
