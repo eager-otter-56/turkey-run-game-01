@@ -31,6 +31,8 @@ export const FARMER = {
   cornPushBack: 26, // corn bursts shove him back a little
   baseChase: 0.96, // fraction of turkey speed he matches early on
   lateChase: 1.015, // ...and late he is right on your tail feathers
+  dinnerRushStart: 800, // metres: from here Hank sprints for the table
+  dinnerRushChase: 0.985, // his share in the rush — the gap melts ~7 px/s
   recoverPerSecond: 7.5, // clean running slowly reopens the gap
 };
 

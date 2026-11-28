@@ -13,6 +13,14 @@ export function posedRun(name) {
   run.time = 2.4;
   if (name === 'title') {
     run.phase = 'title';
+    run.obstacles = [
+      { kind: 'haybale', x: 940, lane: 1, passed: false },
+      { kind: 'knife', x: 1120, lane: -1, swing: 1.0, passed: false },
+    ];
+    run.corns = [
+      { x: 830, lane: 1, y: GROUND_Y - 90, taken: false, bob: 1 },
+      { x: 904, lane: 1, y: GROUND_Y - 90, taken: false, bob: 2 },
+    ];
     return { run, scroll: 640 };
   }
   if (name === 'chase') {
@@ -21,7 +29,7 @@ export function posedRun(name) {
     run.score = 238 + 6 * 25;
     run.cornEaten = 6;
     run.stamina = 72;
-    run.farmer.gap = 148; // Hank right on his tail, looming behind
+    run.farmer.gap = 64; // the near-grab: Hank fills the frame behind him
     run.sprinting = true; // wider FOV sells the pace
     run.turkey.y = GROUND_Y - 128; // mid-leap over the hay bale
     run.turkey.jumpsUsed = 1;
@@ -38,6 +46,8 @@ export function posedRun(name) {
       { x: 800, lane: 1, y: GROUND_Y - 235, taken: false, bob: 2, golden: true },
       { x: 880, lane: 1, y: GROUND_Y - 215, taken: false, bob: 3 },
     ];
+    run.banner = "HE'S RIGHT BEHIND YOU!";
+    run.bannerFor = 1.2;
     run.floaters = [
       { x: 680, y: 250, life: 0.9, label: 'DODGED +5', colour: '#b6ff7a' },
     ];
@@ -45,13 +55,14 @@ export function posedRun(name) {
   }
   if (name === 'kitchen') {
     run.phase = 'run';
-    run.metres = 742;
-    run.score = 742 + 11 * 25;
-    run.cornEaten = 11;
+    run.metres = 862;
+    run.score = 862 + 13 * 25;
+    run.cornEaten = 13;
     run.lives = 2;
     run.stamina = 54;
     run.shield = true; // the lucky feather is riding with him (ring + HUD pill)
-    run.farmer.gap = 236;
+    run.farmer.gap = 175;
+    run.dinnerRush = true;
     run.turkey.lane = 1;
     run.turkey.laneTarget = 1;
     run.turkey.y = GROUND_Y;
@@ -65,9 +76,9 @@ export function posedRun(name) {
       { x: 1010, lane: 1, y: GROUND_Y - 120, taken: false, bob: 0.5 },
       { x: 1084, lane: 1, y: GROUND_Y - 120, taken: false, bob: 1.5 },
     ];
-    run.banner = 'SINGED! Too close to the oven!';
+    run.banner = 'DINNER RUSH! Hank is sprinting for the table!';
     run.bannerFor = 1.2;
-    return { run, scroll: 742 * 46 };
+    return { run, scroll: 862 * 46 };
   }
   if (name === 'escaped') {
     run.phase = 'escaped';

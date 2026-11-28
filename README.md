@@ -40,6 +40,9 @@ name on it.
   and the gap reopens fast.
 - Reach **1,000 m** to leap the fence and escape: +500, plus +100 for
   every life you kept.
+- The last 200 m are the **Dinner Rush**: Hank stops pacing himself and
+  sprints for the table — the gap melts away, and one stumble there can
+  be your last.
 
 ## Controls
 
@@ -57,7 +60,10 @@ name on it.
   http://localhost:8080, or any static file server.
   - `game/src/config.js` — every tuning number in one place
   - `game/src/world.js` — the simulation: 3-lane runner — turkey, farmer AI, hazards, corn, scoring
-  - `game/src/render3d.js` — the three.js view: behind-the-turkey runner camera, low-poly turkey, farmer, farmyard and kitchen corridor modelled from primitives
+  - `game/src/render3d.js` — the three.js view: behind-the-turkey runner camera, scene assembly and the actor/prop pools
+  - `game/src/actors.js` — the two characters: Tom the turkey and Farmer Hank, modelled from primitives
+  - `game/src/props.js` — hazards and set pieces: bales, fences, the oven, the swinging knife, corn, the barn, hanging pans
+  - `game/src/models.js` — the modelling toolbox: primitive meshes, canvas-texture signs and ground/wall textures
   - `game/src/overlay.js` — the 2D overlay canvas: HUD, score floaters, title and end screens
   - `game/vendor/three.min.js` — three.js r128 (MIT), vendored so the game never touches the network
   - `game/src/input.js` — keyboard and mouse, with an edge-press queue

@@ -39,6 +39,7 @@ export function createRun() {
       lane: 0, laneTarget: 0, // -1 left, 0 centre, 1 right
     },
     farmer: { gap: FARMER.startGap, grabFor: 0, shoutFor: 0 },
+    dinnerRush: false, // flips true at 800 m: Hank sprints for the table
     stamina: WORLD.staminaMax,
     speed: WORLD.baseSpeed,
     obstacles: [],
@@ -301,8 +302,12 @@ export function stepRun(run, input, dt) {
   }
 
   // --- the farmer -----------------------------------------------------------
-  const chaseShare = FARMER.baseChase
-    + (FARMER.lateChase - FARMER.baseChase) * Math.min(1, run.metres / GOAL_METRES);
+  if (!run.dinnerRush && run.metres >= FARMER.dinnerRushStart) {
+    run.dinnerRush = true; // the last 200 m: he stops pacing, he CHARGES
+    showBanner(run, 'DINNER RUSH! Hank is sprinting for the table!');
+    run.events.push('shout');
+  }
+  const chaseShare = farmerChaseShare(run);
   f.gap += (run.speed * (1 - chaseShare)) * dt * -1; // he eats the gap at his share
   f.gap += FARMER.recoverPerSecond * dt * (t.hidden ? 4.2 : 1); // hiding breaks his search
   if (sprinting) f.gap += 26 * dt;
@@ -323,6 +328,15 @@ export function stepRun(run, input, dt) {
     run.score += 500 + run.lives * 100;
     run.events.push('escaped');
   }
+}
+
+// How much of the turkey's speed Hank matches. He paces himself early,
+// matches late — and in the Dinner Rush (the last 200 m) he runs a share
+// that actually melts the gap, so a stumble there can be the last one.
+function farmerChaseShare(run) {
+  if (run.metres >= FARMER.dinnerRushStart) return FARMER.dinnerRushChase;
+  return FARMER.baseChase
+    + (FARMER.lateChase - FARMER.baseChase) * Math.min(1, run.metres / GOAL_METRES);
 }
 
 function showBanner(run, text) {

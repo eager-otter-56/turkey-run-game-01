@@ -105,7 +105,7 @@ export function drawTitleOverlay(ctx) {
   roundRect(ctx, 90, 652, 1100, 76, 12); ctx.fill();
   text(ctx, '← → switch lanes · SPACE / ↑ jump (twice = flap!) · ↓ duck the knives · SHIFT sprint to the Wildwood fence at 1,000 m',
     VIEW_WIDTH / 2, 678, 21, '#3d2317');
-  text(ctx, 'Dodge the oven & the knife · grab corn (golden = +100!) · a lucky feather eats one hit for you · dodges pay +5',
+  text(ctx, 'Dodge the oven & knife · corn +25 (golden +100!) · a feather eats one hit · beware the DINNER RUSH at 800 m!',
     VIEW_WIDTH / 2, 710, 21, '#3d2317');
 }
 
